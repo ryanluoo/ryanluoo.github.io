@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="借助一个常见的视频播放卡顿Bug，从MP4文件格式至帧还原，抽丝剥茧了解Bug原因与解决方法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="音视频专项测试之MP4帧还原">
+<meta property="og:url" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/index.html">
+<meta property="og:site_name" content="兰兰与茉茉">
+<meta property="og:description" content="借助一个常见的视频播放卡顿Bug，从MP4文件格式至帧还原，抽丝剥茧了解Bug原因与解决方法。">
+<meta property="og:image" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/traffic.png">
+<meta property="og:image" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/box-brief.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/mdhd.png">
+<meta property="og:image" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/restore-process.png">
+<meta property="og:image" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/result.png">
+<meta property="article:published_time" content="2019-01-08T07:37:11.000Z">
+<meta property="article:modified_time" content="2020-04-19T14:58:11.805Z">
+<meta property="article:author" content="ryan">
+<meta property="article:tag" content="音视频">
+<meta property="article:tag" content="BUG">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/traffic.png">
+
+<link rel="canonical" href="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>音视频专项测试之MP4帧还原 | 兰兰与茉茉</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">兰兰与茉茉</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="ryan">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="兰兰与茉茉">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          音视频专项测试之MP4帧还原
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-01-08 15:37:11" itemprop="dateCreated datePublished" datetime="2019-01-08T15:37:11+08:00">2019-01-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-04-19 22:58:11" itemprop="dateModified" datetime="2020-04-19T22:58:11+08:00">2020-04-19</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95/" itemprop="url" rel="index"><span itemprop="name">专项测试</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">借助一个常见的视频播放卡顿Bug，从MP4文件格式至帧还原，抽丝剥茧了解Bug原因与解决方法。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <!-- toc -->
+
+<h1 id="一、背景"><a href="#一、背景" class="headerlink" title="一、背景"></a>一、背景</h1><p>视频作为重要的内容载体，在各项业务中的应用愈加频繁。而与之相关的测试也成为了新的挑战。在最近的工作中，碰到了一个严重的BUG：<strong>视频播放极其卡顿，同时产生大量重复流量</strong>。</p>
+<p>BUG表现为点击视频播放后，菊花一直转动，无法播放流畅画面。对视频播放进行抓包分析，获取到的PCAP大小几乎是视频文件的100倍！（视频完全无法正常播放，故中途停止测试，否则远不止100倍的流量）</p>
+<p><img src="traffic.png" alt=""></p>
+<h1 id="二、协议分析"><a href="#二、协议分析" class="headerlink" title="二、协议分析"></a>二、协议分析</h1><p>流媒体协议有多种，在本例中使用的是HTTP协议。通过分析PCAP文件，发现存在大量且重复的HTTP请求</p>
+<blockquote>
+<p>HTTP 206响应：含义为”Patial Content”。通常在下载一个较大的文件（例如视频）时，会分成多个Http请求，每个请求头中指定Range，表明需要目标资源的哪一部分。服务器通过206响应返回目标数据，同时在响应头中带上Content-Range和Content-Length指明实际返回哪些数据。</p>
+</blockquote>
+<p>可以看到连续若干个Http请求的Range为：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">Range: bytes=1042360-</span><br><span class="line">Range: bytes=48-</span><br><span class="line">Range: bytes=1004028-</span><br><span class="line">Range: bytes=154675-</span><br><span class="line">Range: bytes=1004063-</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>可以发现以下两个问题：</p>
+<ol>
+<li><p>Range没有指定结束位置，区间没有闭合</p>
+<blockquote>
+<p>如果Range只有起始位置，则表明请求从起始位置至文件尾所有的数据，服务器会尽量多返回数据。</p>
+</blockquote>
+</li>
+<li><p>请求的文件内容存在大量重复</p>
+</li>
+</ol>
+<p>可以猜测：大量的网络I/O导致了视频播放的卡顿，而重复请求的文件内容导致了流量浪费。但是依然存在两个问题：</p>
+<ol>
+<li>为什么存在大量的请求？</li>
+<li>为什么相邻的Http请求中的Range偏移量很大？</li>
+</ol>
+<h1 id="三、MP4视频格式初探"><a href="#三、MP4视频格式初探" class="headerlink" title="三、MP4视频格式初探"></a>三、MP4视频格式初探</h1><p>作为一种主流的视频封装格式，MP4其实是由一个个盒子（BOX）拼接、嵌套而成。一个MP4由最基本的3个BOX组成：</p>
+<ol>
+<li>ftyp：通常用来指明编码格式，兼容性等。通常ftyp放在文件最前面，使得播放器可以明确使用哪个格式对文件进行解析 </li>
+<li>mdat：实际的媒体数据</li>
+<li>moov：经常讲到的“文件头”，所有的多媒体信息都在这里，其中还包含了很多子box，包括mvhd、trak等。存储了音量、尺寸、播放速度等方方面的信息。</li>
+</ol>
+<p>借用网上一张图来展示一个常见的MP4所包含的所有BOX：<br><img src="box-brief.jpg" alt=""></p>
+<h1 id="四、帧还原原理"><a href="#四、帧还原原理" class="headerlink" title="四、帧还原原理"></a>四、帧还原原理</h1><p>当MP4播放到第n秒时，首先需要确认并获取每个trak中所对应的sample数据。这个过程就是帧还原。通常在某个时间点，需要两次帧还原的过程，分别确认audio和video的sample数据。</p>
+<h2 id="1、mdhd"><a href="#1、mdhd" class="headerlink" title="1、mdhd"></a>1、mdhd</h2><p>mdhd中的内容如下所示：<br><img src="mdhd.png" alt=""></p>
+<p>time scale指的是1s所代表的时间单位数。duration指的是整个trak的时间长度。所以duration/timescale = 实际时长（s）。上述视频的实际时长就是86016 / 12800 = 6.72秒。</p>
+<h2 id="2、stbl"><a href="#2、stbl" class="headerlink" title="2、stbl"></a>2、stbl</h2><p>stbl中包含了帧还原所必要的信息。通过分析视频的帧结构或许可以找到bug的线索。</p>
+<h3 id="stsz"><a href="#stsz" class="headerlink" title="stsz"></a>stsz</h3><p>记录了sample数量和每个sample的大小。</p>
+<table>
+<thead>
+<tr>
+<th>NO.</th>
+<th>Sample size</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1.</td>
+<td>18600</td>
+</tr>
+<tr>
+<td>2.</td>
+<td>901</td>
+</tr>
+<tr>
+<td>3.</td>
+<td>1277</td>
+</tr>
+<tr>
+<td>4.</td>
+<td>2062</td>
+</tr>
+<tr>
+<td>5.</td>
+<td>2779</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<h3 id="stts"><a href="#stts" class="headerlink" title="stts"></a>stts</h3><p>提供了在同一个时间偏移量里面连续的sample序号， 以及samples的偏移量。递增这些偏移量，就可以建立一个完整的time-to-sample映射关系。</p>
+<table>
+<thead>
+<tr>
+<th>No.</th>
+<th>Sample count</th>
+<th>Sample delta</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1.</td>
+<td>1</td>
+<td>42</td>
+</tr>
+<tr>
+<td>2.</td>
+<td>1</td>
+<td>41</td>
+</tr>
+<tr>
+<td>3.</td>
+<td>2</td>
+<td>42</td>
+</tr>
+<tr>
+<td>4.</td>
+<td>1</td>
+<td>41</td>
+</tr>
+<tr>
+<td>5.</td>
+<td>2</td>
+<td>42</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p>具体说来为了节省文件空间，MP4将偏移量相同的连续sample记录在表格的同一个条目中。表格中每个条目的含义为：</p>
+<ul>
+<li>第1个sample的时间偏移量为42</li>
+<li>第2个sample的时间偏移量为41</li>
+<li>第3，4个sample的时间偏移量为42</li>
+<li>第5个sample的时间偏移量为41</li>
+<li>…</li>
+</ul>
+<p>当需要第n秒的sample时，首先通过 n * timescale得到duration，假设为100，那么根据上表可以得到对应第3个sample。</p>
+<h3 id="stsc"><a href="#stsc" class="headerlink" title="stsc"></a>stsc</h3><p>提供了sample和Chunk的关系。MP4将所有的sample进行分组（Chunk）,使用Chunk来组织所有的sample，不同的Chunk容量可以不同。</p>
+<table>
+<thead>
+<tr>
+<th>No.</th>
+<th>First chunk</th>
+<th>Samples per chunk</th>
+<th>Samples description index</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1.</td>
+<td>1</td>
+<td>13</td>
+<td>1</td>
+</tr>
+<tr>
+<td>2.</td>
+<td>29</td>
+<td>12</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3.</td>
+<td>30</td>
+<td>13</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4.</td>
+<td>58</td>
+<td>12</td>
+<td>1</td>
+</tr>
+<tr>
+<td>5.</td>
+<td>59</td>
+<td>13</td>
+<td>1</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p>上面这张表的含义是：</p>
+<ul>
+<li>第1~28个Chunk各自包含13个sample</li>
+<li>第29个Chunk中包含12个sample</li>
+<li>第30~57个Chunk中各自包含了13个sample</li>
+<li>…</li>
+</ul>
+<p>如果需要第400个sample，则通过上表可以得到计算得到：400 = 13 * <strong>28</strong> + 12 * <strong>1</strong> + 13 * <strong>1</strong> + 11，所以第400个sample在第31个Chunk中(<em>31=28+1+1+1</em>)。</p>
+<h3 id="stco"><a href="#stco" class="headerlink" title="stco"></a>stco</h3><p>提供了chunk在文件中的偏移量。</p>
+<table>
+<thead>
+<tr>
+<th>No.</th>
+<th>Chunk offset</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1.</td>
+<td>236840</td>
+</tr>
+<tr>
+<td>2.</td>
+<td>250267</td>
+</tr>
+<tr>
+<td>3.</td>
+<td>259341</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<h2 id="3、还原流程"><a href="#3、还原流程" class="headerlink" title="3、还原流程"></a>3、还原流程</h2><p><img src="restore-process.png" alt=""></p>
+<h1 id="五、Sample跳动过大"><a href="#五、Sample跳动过大" class="headerlink" title="五、Sample跳动过大"></a>五、Sample跳动过大</h1><p>通过分析问题MP4的帧格式既可一窥问题本质。获取第1秒时视频和音频的sample：</p>
+<ol>
+<li>视频trak中第25个sample，位于第1个chunk中，chunk在文件中的偏移量为48，所以该sample在文件中的offset为<strong>121576</strong>，sample大小为28259</li>
+<li>音频trak中第43个sample，位于第1个chunk中，chunk在文件中的偏移量为1004028，所以该sample在文件中的offset为<strong>1008770</strong>，sample大小为126。<br>又了解到播放器底层buffer尺寸为32KB = <strong>32768</strong>。所以可以发现，同一个时间点对应的视频和音频sample在文件中的偏移量为<strong>887194</strong>，远远大于buffer尺寸，导致播放器不停发出http请求。</li>
+</ol>
+<p>根本原因是音频和视频trak在视频文件中相距太远，导致buffer无法生效，不停触发http请求，且相邻请求的range偏移量很大。一图以蔽之：</p>
+<img src="/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/result.png" class="">
+
+
+
+<h1 id="六、显示顺序-VS-解码顺序"><a href="#六、显示顺序-VS-解码顺序" class="headerlink" title="六、显示顺序 VS 解码顺序"></a>六、显示顺序 VS 解码顺序</h1><p>sample的解码与显示顺序不一致的话，moov中会包含一个ctts来表示这种信息。</p>
+<table>
+<thead>
+<tr>
+<th>No.</th>
+<th>Sample count</th>
+<th>Sample offset</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1.</td>
+<td>1</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>2.</td>
+<td>1</td>
+<td>2048</td>
+</tr>
+<tr>
+<td>3.</td>
+<td>1</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>4.</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>5.</td>
+<td>1</td>
+<td>2048</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<p>ctts记录了【显示】与【解码】二者在时间上的差值，用来还原每个sample的显示顺序。就会导致sample在<strong>空间相邻但是时间上不相邻</strong>。此类特殊视频也可能导致同样的bug。</p>
+<h1 id="七、解决方法"><a href="#七、解决方法" class="headerlink" title="七、解决方法"></a>七、解决方法</h1><p>对于sample跳动过大的视频，本质解决方法是如何检测此类情况，同时减少Http请求次数。目前的临时方案是依赖后台对所有外部视频进行转码，播放器本身根据sample跳动幅度动态缩放buffer尺寸。</p>
+<p>对于sample在文件首尾来回跳动的极端特殊视频，还没有有效的方案。</p>
+<h1 id="八、后话"><a href="#八、后话" class="headerlink" title="八、后话"></a>八、后话</h1><p>从常用的网络协议分析，到音视频格式解析，必须理解并运用每一个环节的知识点才能完成音视频的专项测试。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E9%9F%B3%E8%A7%86%E9%A2%91/" rel="tag"># 音视频</a>
+              <a href="/tags/BUG/" rel="tag"># BUG</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/08/%E3%80%90Python%E3%80%91%E8%AE%B0%E4%B8%80%E6%AC%A1KeyError%200%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/" rel="next" title="【Python】记一次KeyError 0问题的排查">
+      【Python】记一次KeyError 0问题的排查 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一、背景"><span class="nav-number">1.</span> <span class="nav-text">一、背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二、协议分析"><span class="nav-number">2.</span> <span class="nav-text">二、协议分析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#三、MP4视频格式初探"><span class="nav-number">3.</span> <span class="nav-text">三、MP4视频格式初探</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#四、帧还原原理"><span class="nav-number">4.</span> <span class="nav-text">四、帧还原原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1、mdhd"><span class="nav-number">4.1.</span> <span class="nav-text">1、mdhd</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2、stbl"><span class="nav-number">4.2.</span> <span class="nav-text">2、stbl</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#stsz"><span class="nav-number">4.2.1.</span> <span class="nav-text">stsz</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#stts"><span class="nav-number">4.2.2.</span> <span class="nav-text">stts</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#stsc"><span class="nav-number">4.2.3.</span> <span class="nav-text">stsc</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#stco"><span class="nav-number">4.2.4.</span> <span class="nav-text">stco</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3、还原流程"><span class="nav-number">4.3.</span> <span class="nav-text">3、还原流程</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#五、Sample跳动过大"><span class="nav-number">5.</span> <span class="nav-text">五、Sample跳动过大</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#六、显示顺序-VS-解码顺序"><span class="nav-number">6.</span> <span class="nav-text">六、显示顺序 VS 解码顺序</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#七、解决方法"><span class="nav-number">7.</span> <span class="nav-text">七、解决方法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#八、后话"><span class="nav-number">8.</span> <span class="nav-text">八、后话</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="ryan"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">ryan</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">ryan</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

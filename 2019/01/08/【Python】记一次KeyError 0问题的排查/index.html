@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="关于Python __getitem__ 的一个简单的问题排查。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【Python】记一次KeyError 0问题的排查">
+<meta property="og:url" content="http://yoursite.com/2019/01/08/%E3%80%90Python%E3%80%91%E8%AE%B0%E4%B8%80%E6%AC%A1KeyError%200%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/index.html">
+<meta property="og:site_name" content="兰兰与茉茉">
+<meta property="og:description" content="关于Python __getitem__ 的一个简单的问题排查。">
+<meta property="article:published_time" content="2019-01-08T08:52:47.000Z">
+<meta property="article:modified_time" content="2020-04-19T15:14:42.900Z">
+<meta property="article:author" content="ryan">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Bug">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2019/01/08/%E3%80%90Python%E3%80%91%E8%AE%B0%E4%B8%80%E6%AC%A1KeyError%200%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>【Python】记一次KeyError 0问题的排查 | 兰兰与茉茉</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">兰兰与茉茉</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/08/%E3%80%90Python%E3%80%91%E8%AE%B0%E4%B8%80%E6%AC%A1KeyError%200%E9%97%AE%E9%A2%98%E7%9A%84%E6%8E%92%E6%9F%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="ryan">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="兰兰与茉茉">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【Python】记一次KeyError 0问题的排查
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-01-08 16:52:47" itemprop="dateCreated datePublished" datetime="2019-01-08T16:52:47+08:00">2019-01-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-04-19 23:14:42" itemprop="dateModified" datetime="2020-04-19T23:14:42+08:00">2020-04-19</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">关于Python __getitem__ 的一个简单的问题排查。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <!-- toc -->
+
+
+
+<h1 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h1><p><strong>大神请绕道，小白简单的笔记，见笑了~</strong></p>
+<p>自定义类中包含了一个<code>字典</code>，重载<code>__getitem__</code>，便于直接通过<code>[]</code>进行索引。简单来说类似：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">UserClass</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span></span><br><span class="line">    self._user_dict = &#123;</span><br><span class="line">        <span class="string">u'a'</span>: <span class="number">1</span>,</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">     <span class="function"><span class="keyword">def</span> <span class="title">__getitem__</span><span class="params">(self, item)</span>:</span></span><br><span class="line">         <span class="keyword">return</span> self._user_dict[item]</span><br><span class="line">    </span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    obj = UserClass()</span><br><span class="line">    <span class="keyword">print</span> obj[<span class="string">u'a'</span>]</span><br></pre></td></tr></table></figure>
+
+
+
+<p>实际使用时，当通过<code>key</code>索引时，一般首先需要判断<code>key</code>是否存在，类似如下语句：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">key = <span class="string">u'a'</span></span><br><span class="line"><span class="keyword">if</span> key <span class="keyword">in</span> obj:</span><br><span class="line">    <span class="keyword">print</span> obj[key]</span><br></pre></td></tr></table></figure>
+
+<p>此时就会抛出异常：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">KeyError: 0</span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="排查"><a href="#排查" class="headerlink" title="排查"></a>排查</h1><p>看到<code>KeyError</code>，再结合调用栈发现，最终是挂在<code>__getitem__</code> 方法里，所以<strong>理所当然</strong>认为是<code>obj[key]</code>的键值传错了。可调试发现，<code>key</code>是对的，而且字典中也是存在的，而且最关键的是：<strong>为什么提示错误的<code>key</code>是<code>0</code>？</strong></p>
+<p>进一步调试发现，原来是挂在了<code>in</code>语句上，Google后发现必须重载<code>__contains__</code>方法才可以正常使用<code>in</code>关键字：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">UserClass</span><span class="params">(object)</span>:</span> </span><br><span class="line">    <span class="comment"># init方法定义</span></span><br><span class="line">    <span class="comment"># __getitem__方法定义</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__contains__</span><span class="params">(self, item)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> item <span class="keyword">in</span> self._user_dict</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    obj = UserClass()</span><br><span class="line">    key = <span class="string">u'a'</span></span><br><span class="line">    <span class="keyword">if</span> key <span class="keyword">in</span> obj:</span><br><span class="line">        <span class="keyword">print</span> obj[key]</span><br></pre></td></tr></table></figure>
+
+<p>问题解决~~</p>
+<h1 id="进一步"><a href="#进一步" class="headerlink" title="进一步"></a>进一步</h1><p>可是依然有2点疑问未能得到解答：</p>
+<ul>
+<li><p>为什么<code>in</code>会跑到<code>__getitem__</code>中去？</p>
+</li>
+<li><p>为什么提示错误是<code>KeyError 0</code>？</p>
+</li>
+</ul>
+<p>翻阅文档发现，原来如果类没有实现<code>__contains__</code>，却又试图使用<code>in</code>关键字时，Python会尝试遍历对象：</p>
+<blockquote>
+<p>For objects that don’t define <a href="https://docs.python.org/2/reference/datamodel.html?highlight=__contains_#object.__contains__" target="_blank" rel="noopener"><code>__contains__()</code></a>, the membership test first tries iteration via <a href="https://docs.python.org/2/reference/datamodel.html?highlight=__contains_#object.__iter__" target="_blank" rel="noopener"><code>__iter__()</code></a>, then the <strong>old sequence iteration protocol</strong> via <a href="https://docs.python.org/2/reference/datamodel.html?highlight=__contains_#object.__getitem__" target="_blank" rel="noopener"><code>__getitem__()</code></a></p>
+</blockquote>
+<p>上面的例子中，类并没有定义<code>__iter__</code>，自然就按照第二种方式<code>__getitem__</code>来进行遍历，疑问1已经解答~ </p>
+<p>那么上文中<code>old sequence iteration protocol</code>指的是什么呢？</p>
+<blockquote>
+<p> the old-style iteration protocol is tried: if a class defines <a href="https://docs.python.org/2/reference/datamodel.html#object.__getitem__" target="_blank" rel="noopener"><code>__getitem__()</code></a>, <code>x in y</code> is <code>True</code> if and only if there is a non-negative integer index <em>i</em> such that <code>x == y[i]</code></p>
+</blockquote>
+<p>原来遍历的时候，Python会尝试使用非负整数来遍历对象，例如<code>x in y</code>，只有当找到了某个非负整数<code>i</code>满足<code>x == y[i]</code>时，才返回<code>True</code>。</p>
+<blockquote>
+<p> 其实就默认把对象当成一个list来遍历</p>
+</blockquote>
+<p>所以在上述的测试代码中，会按照0、1、2、…的顺序进行遍历，不过在首次遍历时，由于字典中没有键<code>0</code>，所以<code>obj[0]</code>立刻抛出<code>KeyError 0</code>的异常。验证很简单：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">UserClass</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span></span><br><span class="line">        self._user_dict = &#123;</span><br><span class="line">            <span class="string">u'a'</span>: <span class="number">1</span>,</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__getitem__</span><span class="params">(self, item)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> self._user_dict[item]</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__setitem__</span><span class="params">(self, key, value)</span>:</span></span><br><span class="line">        self._user_dict[key] = value</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    obj = UserClass()</span><br><span class="line">    <span class="comment"># 测试1</span></span><br><span class="line">    <span class="comment"># print u'a' in obj  </span></span><br><span class="line">    <span class="comment"># --&gt; 抛出异常 KeyError 0</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 测试2</span></span><br><span class="line">    <span class="comment"># obj[0] = u'test'</span></span><br><span class="line">    <span class="comment"># print u'a' in obj  </span></span><br><span class="line">    <span class="comment"># --&gt; 抛出异常 KeyError 1，因为此时obj[0]有值，但是不等于u'a'，故继续检查obj[1]</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 测试3</span></span><br><span class="line">    <span class="comment"># obj[0] = u'test'</span></span><br><span class="line">    <span class="comment"># obj[1] = u'a'</span></span><br><span class="line">    <span class="comment"># print u'a' in obj</span></span><br><span class="line">    <span class="comment"># --&gt; 打印 True, 因为遍历到obj[1]时，满足u'a' == obj[1]，所以 in 成立</span></span><br></pre></td></tr></table></figure>
+
+<p>所有疑问都解决<del>~</del></p>
+<h1 id="啰嗦"><a href="#啰嗦" class="headerlink" title="啰嗦"></a>啰嗦</h1><p>感谢<a href="https://docs.python.org/2/index.html" target="_blank" rel="noopener">Python Doc</a>的详尽，遇到问题首先翻文档，其次再Google</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Python/" rel="tag"># Python</a>
+              <a href="/tags/Bug/" rel="tag"># Bug</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/" rel="prev" title="音视频专项测试之MP4帧还原">
+      <i class="fa fa-chevron-left"></i> 音视频专项测试之MP4帧还原
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/08/iOS%E7%AD%BE%E5%90%8D%E8%AF%81%E4%B9%A6%E9%82%A3%E4%BA%9B%E4%BA%8B/" rel="next" title="iOS签名证书那些事">
+      iOS签名证书那些事 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#问题"><span class="nav-number">1.</span> <span class="nav-text">问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#排查"><span class="nav-number">2.</span> <span class="nav-text">排查</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#进一步"><span class="nav-number">3.</span> <span class="nav-text">进一步</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#啰嗦"><span class="nav-number">4.</span> <span class="nav-text">啰嗦</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="ryan"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">ryan</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">ryan</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
