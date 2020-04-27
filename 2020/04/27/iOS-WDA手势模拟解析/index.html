@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ryanluoo.gitee.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="iOS端最广泛使用的自动化测试工具是Facebook出品的WebDriverAgent。但基于WebDriverAgent实现iOS远程控制时发现UI手势操作及其卡顿，最终借助了Xcode私有API进行手势操作性能优化。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="iOS WDA手势模拟解析">
+<meta property="og:url" content="http://ryanluoo.gitee.io/2020/04/27/iOS-WDA%E6%89%8B%E5%8A%BF%E6%A8%A1%E6%8B%9F%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="兰兰与茉茉">
+<meta property="og:description" content="iOS端最广泛使用的自动化测试工具是Facebook出品的WebDriverAgent。但基于WebDriverAgent实现iOS远程控制时发现UI手势操作及其卡顿，最终借助了Xcode私有API进行手势操作性能优化。">
+<meta property="og:image" content="http://ryanluoo.gitee.io/2020/04/27/iOS-WDA%E6%89%8B%E5%8A%BF%E6%A8%A1%E6%8B%9F%E8%A7%A3%E6%9E%90/move1.gif">
+<meta property="og:image" content="http://ryanluoo.gitee.io/2020/04/27/iOS-WDA%E6%89%8B%E5%8A%BF%E6%A8%A1%E6%8B%9F%E8%A7%A3%E6%9E%90/move2.gif">
+<meta property="article:published_time" content="2020-04-27T08:23:15.000Z">
+<meta property="article:modified_time" content="2020-04-27T08:55:35.921Z">
+<meta property="article:author" content="ryan">
+<meta property="article:tag" content="iOS">
+<meta property="article:tag" content="自动化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://ryanluoo.gitee.io/2020/04/27/iOS-WDA%E6%89%8B%E5%8A%BF%E6%A8%A1%E6%8B%9F%E8%A7%A3%E6%9E%90/move1.gif">
+
+<link rel="canonical" href="http://ryanluoo.gitee.io/2020/04/27/iOS-WDA%E6%89%8B%E5%8A%BF%E6%A8%A1%E6%8B%9F%E8%A7%A3%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>iOS WDA手势模拟解析 | 兰兰与茉茉</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">兰兰与茉茉</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://ryanluoo.gitee.io/2020/04/27/iOS-WDA%E6%89%8B%E5%8A%BF%E6%A8%A1%E6%8B%9F%E8%A7%A3%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="ryan">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="兰兰与茉茉">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          iOS WDA手势模拟解析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-04-27 16:23:15 / 修改时间：16:55:35" itemprop="dateCreated datePublished" datetime="2020-04-27T16:23:15+08:00">2020-04-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS/" itemprop="url" rel="index"><span itemprop="name">iOS</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description"><p>iOS端最广泛使用的自动化测试工具是Facebook出品的<a href="https://github.com/facebookarchive/WebDriverAgent" target="_blank" rel="noopener">WebDriverAgent</a>。</p><p>但基于WebDriverAgent实现iOS远程控制时发现UI手势操作及其卡顿，最终借助了Xcode私有API进行手势操作性能优化。</p></div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="iOS-WDA手势模拟解析"><a href="#iOS-WDA手势模拟解析" class="headerlink" title="iOS WDA手势模拟解析"></a>iOS WDA手势模拟解析</h1><p>正在参与的机架平台iOS端远程操作是基于<a href="https://github.com/facebookarchive/WebDriverAgent" target="_blank" rel="noopener">WebDriverAgent</a>(简称WDA)实现。</p>
+<p>WDA是Facebook出品的的iOS自动化测试框架，可惜原项目已经2019年7月停止维护。不过好在Appium社区维护的一个<a href="https://github.com/appium/WebDriverAgent" target="_blank" rel="noopener">开源版本</a>依然保持活跃, 解决了例如Xcode11.4兼容性等问题。</p>
+<blockquote>
+<p>后续提到的WDA均指的Appium版本</p>
+</blockquote>
+<p>WDA的工作原理简单来说，就是在iOS端实现了一个<a href="https://w3c.github.io/webdriver/" target="_blank" rel="noopener">WebDriver Server</a>，通过一组REST API暴露iOS私有API的能力，其中最重要的是模拟手势操作。</p>
+<h2 id="一、WDA手势操作"><a href="#一、WDA手势操作" class="headerlink" title="一、WDA手势操作"></a>一、WDA手势操作</h2><p>WDA默认的单指手势操作是基于<code>XCUICoordinate</code>实现，其提供了一组接口</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 单击</span><br><span class="line">- (void)tap;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 双击</span><br><span class="line">- (void)doubleTap;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 按压并保持</span><br><span class="line">- (void)pressForDuration:(NSTimeInterval)duration;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 按压并保持，再拖动到新的位置</span><br><span class="line">- (void)pressForDuration:(NSTimeInterval)duration thenDragToCoordinate:(XCUICoordinate *)otherCoordinate;</span><br></pre></td></tr></table></figure>
+
+<p>在GTF的实践中，发现手势操时延非常严重。其根本原因在于<code>XCUICoordinate</code>是基于UI控件的：</p>
+<blockquote>
+<p>A coordinate represents a location on screen, relative to some element</p>
+</blockquote>
+<p>所以在构造<code>XCUICoordinate</code>时，必须要进行UI控件的查询：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">XCUIElement *element &#x3D; application;</span><br><span class="line">if (isSDKVersionGreaterThanOrEqualTo(@&quot;11.0&quot;)) &#123;</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    &#x2F;&#x2F; 查询到第一个控件</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    XCUIElement *window &#x3D; application.windows.fb_firstMatch; </span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; </span><br><span class="line">    &#x2F;&#x2F; 将绝对坐标转换为控件相对坐标</span><br><span class="line">    &#x2F;&#x2F;</span><br><span class="line">    if (window) &#123; </span><br><span class="line">        element &#x3D; window; </span><br><span class="line">        point.x -&#x3D; element.frame.origin.x; </span><br><span class="line">        point.y -&#x3D; element.frame.origin.y; </span><br><span class="line">    &#125; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在远程控制场景中，用户在前端用鼠标模拟手势操作，只需要基于<code>手机屏幕进行绝对坐标操作</code>即可，完全可以跳过UI控件查找步骤。</p>
+<p>通过分析WDA源码可以发现，WDA还<strong><em>默默</em></strong>基于XCTest私有API，提供了一个适用于多指操作的接口。<br>私有API是基于屏幕绝对坐标进行手势的定义与回放，脱离了控件查询依赖，完全能满足机架的需求。</p>
+<h2 id="二、XCTest私有API"><a href="#二、XCTest私有API" class="headerlink" title="二、XCTest私有API"></a>二、XCTest私有API</h2><p>对于用户而言，手势操作即在屏幕上用一或多根手指进行如下连续操作：</p>
+<ul>
+<li><code>Touch Down</code>：按压在屏幕上特定位置</li>
+<li><code>Move To</code>：移动到新的位置</li>
+<li><code>Wait</code>：保持</li>
+<li><code>Touch Up</code>：抬起，即手势结束</li>
+</ul>
+<p>对于WDA而言，为了模拟用户手势操作，即触发一或多组上述动作序列。</p>
+<h3 id="1-单点操作轨迹"><a href="#1-单点操作轨迹" class="headerlink" title="1. 单点操作轨迹"></a>1. 单点操作轨迹</h3><p>一个手势可能包含多根手指，每根手指的操作即一个<strong>单点操作轨迹</strong>。 <code>XCTest</code>中一个单点的操作轨迹都保存在<code>XCPointerEventPath</code>。</p>
+<p>一个常见的单点操作轨迹如下，虽然中间移动过程可能不同，但是必然是以<code>按压</code>开始，以<code>抬起</code>结束：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">TouchDown(Touch Down 按压)</span><br><span class="line">MoveTo[Move To 移动]</span><br><span class="line">Wait[Wait 等待]</span><br><span class="line">TouchUp(Touch Up 抬起)</span><br><span class="line"></span><br><span class="line">TouchDown --&gt; MoveTo</span><br><span class="line">        MoveTo -.-&gt; Wait</span><br><span class="line">        Wait -.-&gt; MoveTo</span><br><span class="line">Wait --&gt; TouchUp</span><br></pre></td></tr></table></figure>
+
+<p>如果是希望构造一个单点矩形移动轨迹，则对应到<code>XCPointerEventPath</code>即为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 1. 以一个Touch Down事件初始化一个实例</span><br><span class="line">&#x2F;&#x2F; @param arg1 初始按压位置的坐标</span><br><span class="line">&#x2F;&#x2F; @param arg2 该事件在时间轴上的偏移量，单位：秒</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">XCPointerEventPath *eventPath &#x3D; [[XCPointerEventPath alloc] initForTouchAtPoint:CGPointMake(200, 200) offset:0];</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 2. 添加Move To事件</span><br><span class="line">&#x2F;&#x2F; @param arg1 移动的目标位置坐标</span><br><span class="line">&#x2F;&#x2F; @param arg2 该事件在时间轴上的偏移量，单位：秒</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">[eventPath moveToPoint:CGPointMake(200, 300) atOffset:1];</span><br><span class="line">[eventPath moveToPoint:CGPointMake(300, 300) atOffset:2];</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 3. 添加Wait事件</span><br><span class="line">&#x2F;&#x2F; 其实是根据其它事件的时间偏移(offset)，并插入一个按压时间来控制</span><br><span class="line">&#x2F;&#x2F; @param arg1 该事件在时间轴上的偏移量，单位：秒</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">[eventPath pressDownAtOffset:3];</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 4. 继续添加Move To事件</span><br><span class="line">&#x2F;&#x2F; @param arg1 移动的目标位置坐标</span><br><span class="line">&#x2F;&#x2F; @param arg2 该事件在时间轴上的偏移量，单位：秒</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">[eventPath moveToPoint:CGPointMake(300, 200) atOffset:4];</span><br><span class="line">[eventPath moveToPoint:CGPointMake(200, 200) atOffset:5];</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 5. 添加Touch Up事件 </span><br><span class="line">&#x2F;&#x2F; @param arg1 该事件在时间轴上的偏移量，单位：秒</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">[eventPath liftUpAtOffset:5];</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>需要注意的是：<code>offset</code>指的是绝对时间偏差，例如上面示例中移动的4个点，其实是匀速的，每次移动耗时1秒</p>
+</blockquote>
+<p>最终的效果为：<br><img src="move1.gif" alt=""></p>
+<h3 id="2-完整手势记录"><a href="#2-完整手势记录" class="headerlink" title="2. 完整手势记录"></a>2. 完整手势记录</h3><p>每个手指的操作即为一次<code>单点移动轨迹</code>, 而一次手势操作可能包含多个手指，例如：双指缩放操作。</p>
+<p>完整的手势操作记录保存在<code>XCSynthesizedEventRecord</code>，其中可以包含多个<code>XCPointerEventPath</code>。以双指捏合进行缩放为例，对应的代码为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 1. 构造一个手势记录</span><br><span class="line">&#x2F;&#x2F; @param 自定义名称</span><br><span class="line">&#x2F;&#x2F; @param 当前屏幕旋转方向</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">XCSynthesizedEventRecord *eventRecord &#x3D; [[XCSynthesizedEventRecord alloc] initWithName:@&quot;Test&quot; interfaceOrientation:UIInterfaceOrientationPortrait]]; </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 2. 对于一根手指，构造一个单点移动轨迹</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">XCPointerEventPath *eventPath1 &#x3D; [[XCPointerEventPath alloc] initForTouchAtPoint:CGPointMake(180, 448) offset:0];</span><br><span class="line">[eventPath1 moveToPoint:CGPointMake(130, 448) atOffset:1];</span><br><span class="line">[eventPath1 moveToPoint:CGPointMake(180, 448) atOffset:3];</span><br><span class="line">[eventPath1 liftUpAtOffset:3];</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 3. 对于一根手指，构造一个单点移动轨迹</span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">XCPointerEventPath *eventPath2 &#x3D; [[XCPointerEventPath alloc] initForTouchAtPoint:CGPointMake(220, 448) offset:0];</span><br><span class="line">[eventPath2 moveToPoint:CGPointMake(270, 448) atOffset:1];</span><br><span class="line">[eventPath2 moveToPoint:CGPointMake(220, 448) atOffset:3];</span><br><span class="line">[eventPath2 liftUpAtOffset:3];</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;</span><br><span class="line">&#x2F;&#x2F; 4. 将所有的单点操作添加至手势记录中</span><br><span class="line">&#x2F;&#x2F; </span><br><span class="line">[eventRecord addPointerEventPath:eventPath1];</span><br><span class="line">[eventRecord addPointerEventPath:eventPath2];</span><br></pre></td></tr></table></figure>
+<p>最终的效果为：<br><img src="move2.gif" alt=""></p>
+<h3 id="3-手势操作回放"><a href="#3-手势操作回放" class="headerlink" title="3. 手势操作回放"></a>3. 手势操作回放</h3><p>创建一个<code>XCSynthesizedEventRecord</code>用来描述手势操作之后，则需要通过<code>XCUIDevice</code>私有接口进行合成并回放在设备上:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; </span><br><span class="line">&#x2F;&#x2F; 1. 合成已经定义好的手势操作</span><br><span class="line">&#x2F;&#x2F; @param 录制好的手势操作，即eventRecord</span><br><span class="line">&#x2F;&#x2F; @param 执行完成后的回调</span><br><span class="line">&#x2F;&#x2F; </span><br><span class="line">[[XCUIDevice.sharedDevice eventSynthesizer] synthesizeEvent:eventRecord completion:(id)^(BOOL result, NSError *invokeError)&#123;</span><br><span class="line">&#125;];</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、总结"><a href="#三、总结" class="headerlink" title="三、总结"></a>三、总结</h2><p>最终基于XCTest私有API封装了适用于远程控制场景的UI操作接口，提升操作响应速度，欢迎各位用户体验。</p>
+<p>同时基于私有API的连续手势、多指操作模拟也在实现中，敬请期待。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/iOS/" rel="tag"># iOS</a>
+              <a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96/" rel="tag"># 自动化</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/01/08/iOS%E7%AD%BE%E5%90%8D%E8%AF%81%E4%B9%A6%E9%82%A3%E4%BA%9B%E4%BA%8B/" rel="prev" title="iOS签名证书那些事">
+      <i class="fa fa-chevron-left"></i> iOS签名证书那些事
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#iOS-WDA手势模拟解析"><span class="nav-number">1.</span> <span class="nav-text">iOS WDA手势模拟解析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、WDA手势操作"><span class="nav-number">1.1.</span> <span class="nav-text">一、WDA手势操作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、XCTest私有API"><span class="nav-number">1.2.</span> <span class="nav-text">二、XCTest私有API</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-单点操作轨迹"><span class="nav-number">1.2.1.</span> <span class="nav-text">1. 单点操作轨迹</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-完整手势记录"><span class="nav-number">1.2.2.</span> <span class="nav-text">2. 完整手势记录</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-手势操作回放"><span class="nav-number">1.2.3.</span> <span class="nav-text">3. 手势操作回放</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、总结"><span class="nav-number">1.3.</span> <span class="nav-text">三、总结</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="ryan"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">ryan</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">ryan</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"ryanluoo.gitee.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="借助一个常见的视频播放卡顿Bug，从MP4文件格式至帧还原，抽丝剥茧了解Bug原因与解决方法。">
+  <meta name="description" content="视频作为重要的内容载体，在各项业务中的应用愈加频繁。而与之相关的测试也成为了新的挑战。在最近的工作中，碰到了一个严重的BUG：视频播放极其卡顿，同时产生大量重复流量。BUG表现为点击视频播放后，菊花一直转动，无法播放流畅画面。对视频播放进行抓包分析，获取到的PCAP大小几乎是视频文件的100倍！ 最终发现原来是MP4帧还原引发的血案！">
 <meta property="og:type" content="article">
 <meta property="og:title" content="音视频专项测试之MP4帧还原">
 <meta property="og:url" content="http://ryanluoo.gitee.io/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/index.html">
 <meta property="og:site_name" content="兰兰与茉茉">
-<meta property="og:description" content="借助一个常见的视频播放卡顿Bug，从MP4文件格式至帧还原，抽丝剥茧了解Bug原因与解决方法。">
+<meta property="og:description" content="视频作为重要的内容载体，在各项业务中的应用愈加频繁。而与之相关的测试也成为了新的挑战。在最近的工作中，碰到了一个严重的BUG：视频播放极其卡顿，同时产生大量重复流量。BUG表现为点击视频播放后，菊花一直转动，无法播放流畅画面。对视频播放进行抓包分析，获取到的PCAP大小几乎是视频文件的100倍！ 最终发现原来是MP4帧还原引发的血案！">
 <meta property="og:image" content="http://ryanluoo.gitee.io/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/traffic.png">
 <meta property="og:image" content="http://ryanluoo.gitee.io/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/box-brief.jpg">
 <meta property="og:image" content="http://ryanluoo.gitee.io/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/mdhd.png">
 <meta property="og:image" content="http://ryanluoo.gitee.io/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/restore-process.png">
 <meta property="og:image" content="http://ryanluoo.gitee.io/2019/01/08/%E9%9F%B3%E8%A7%86%E9%A2%91%E4%B8%93%E9%A1%B9%E6%B5%8B%E8%AF%95%E4%B9%8BMP4%E5%B8%A7%E8%BF%98%E5%8E%9F/result.png">
 <meta property="article:published_time" content="2019-01-08T07:37:11.000Z">
-<meta property="article:modified_time" content="2020-04-19T14:58:11.805Z">
+<meta property="article:modified_time" content="2020-04-27T08:50:22.414Z">
 <meta property="article:author" content="ryan">
 <meta property="article:tag" content="BUG">
 <meta property="article:tag" content="音视频">
@@ -202,7 +202,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-04-19 22:58:11" itemprop="dateModified" datetime="2020-04-19T22:58:11+08:00">2020-04-19</time>
+                <time title="修改时间：2020-04-27 16:50:22" itemprop="dateModified" datetime="2020-04-27T16:50:22+08:00">2020-04-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -215,7 +215,7 @@
             </span>
 
           
-            <div class="post-description">借助一个常见的视频播放卡顿Bug，从MP4文件格式至帧还原，抽丝剥茧了解Bug原因与解决方法。</div>
+            <div class="post-description"><p>视频作为重要的内容载体，在各项业务中的应用愈加频繁。而与之相关的测试也成为了新的挑战。在最近的工作中，碰到了一个严重的BUG：<b>视频播放极其卡顿，同时产生大量重复流量</b>。</p><p>BUG表现为点击视频播放后，菊花一直转动，无法播放流畅画面。对视频播放进行抓包分析，获取到的PCAP大小几乎是视频文件的100倍！</p> 最终发现原来是MP4帧还原引发的血案！</div>
 
         </div>
       </header>
@@ -578,7 +578,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-count">4</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -591,7 +591,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-count">7</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
